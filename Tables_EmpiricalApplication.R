@@ -13,9 +13,8 @@ library(esreg)
 library(Rcpp)
 library(quantreg)
 library(tidyr)
-sourceCpp("scoring_functions.cpp")
-source("Function_VaR_VQR.R")
-source("GiacominiRossiTest.R")
+sourceCpp("Aux/scoring_functions.cpp")
+source("Aux/Function_VaR_VQR.R")
 
 ### Import results
 Dates <- lubridate::ymd(read.csv("./Crypto/ETHUSDT_1d.csv", head = TRUE)[-c(1:1001),"OpenTime"])

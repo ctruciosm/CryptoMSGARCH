@@ -2,10 +2,10 @@
 ###            RSGARCH: Forecasts             ####
 ##################################################
 using Distributions, Optim, Statistics, StatsFuns, Random, SpecialFunctions, TryCatch, DelimitedFiles, StatsBase, QuadGK, CSV, DataFrames, LinearAlgebra, Kronecker
-include("utils.jl")
-include("DGP.jl")
-include("MaximumLikelihood.jl")
-include("Forecast.jl")
+include("Aux/utils.jl")
+include("Aux/DGP.jl")
+include("Aux/MaximumLikelihood.jl")
+include("Aux/Forecast.jl")
 
 
 # Import Data
