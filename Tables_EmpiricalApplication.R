@@ -17,12 +17,13 @@ sourceCpp("Aux/scoring_functions.cpp")
 source("Aux/Function_VaR_VQR.R")
 
 ### Import results
-Dates <- lubridate::ymd(read.csv("./Crypto/ETHUSDT_1d.csv", head = TRUE)[-c(1:1001),"OpenTime"])
-r_oos <- read.csv("./Crypto/r_oos_ETH_1000.csv", head = FALSE)[,1]
-ES_1 <- read.csv("./Crypto/ES1_ETH_1000.csv", head = FALSE)
-ES_2 <- read.csv("./Crypto/ES2_ETH_1000.csv", head = FALSE)
-VaR_1 <- read.csv("./Crypto/VaR1_ETH_1000.csv", head = FALSE)
-VaR_2 <- read.csv("./Crypto/VaR2_ETH_1000.csv", head = FALSE)
+### Use ETH or BTC
+Dates <- lubridate::ymd(read.csv("./Data/ETHUSDT_1d.csv", head = TRUE)[-c(1:1001),"OpenTime"])
+r_oos <- read.csv("r_oos_ETH_1000.csv", head = FALSE)[,1]
+ES_1 <- read.csv("ES1_ETH_1000.csv", head = FALSE)
+ES_2 <- read.csv("ES2_ETH_1000.csv", head = FALSE)
+VaR_1 <- read.csv("VaR1_ETH_1000.csv", head = FALSE)
+VaR_2 <- read.csv("VaR2_ETH_1000.csv", head = FALSE)
 
 
 
@@ -68,17 +69,6 @@ for (i in 1:K) {
 xtable(BackVaRES1, digits = 4)
 xtable(BackVaRES2, digits = 4)
 
-# Figure VaR plot
-
-r <- data.frame(t = Dates, tipo = "Returns", values = r_oos)
-colnames(VaR_1) <- c("Gray (Normal)", "Gray (Student-t)", "Klaassen (Normal)", "Klaassen (Student-t)", "Haas (Normal)", "Haas (Student-t)")
-var <- VaR_1 |> mutate(t = Dates) |> pivot_longer(cols = c("Gray (Normal)", "Gray (Student-t)", "Klaassen (Normal)", "Klaassen (Student-t)", "Haas (Normal)", "Haas (Student-t)"), values_to = "values", names_to = "VaR")
-var$VaR <- factor(var$VaR, c("Gray (Normal)", "Gray (Student-t)", "Klaassen (Normal)", "Klaassen (Student-t)", "Haas (Normal)", "Haas (Student-t)"))
-
-ggplot(var) + geom_line(aes(x = t, y = values, color = VaR), linetype = "dashed") + 
-  geom_line(data = r, aes(x = t, y = values)) + ylab("Returns") + xlab(" ") + facet_wrap(.~VaR, ncol = 2) + 
-  theme_bw() + 
-  theme(legend.position = "bottom")
 
 # MCS
 
