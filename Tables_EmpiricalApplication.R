@@ -13,8 +13,6 @@ library(esreg)
 library(Rcpp)
 library(quantreg)
 library(tidyr)
-library(ggpubr)
-library(murphydiagram)
 sourceCpp("scoring_functions.cpp")
 source("Function_VaR_VQR.R")
 source("GiacominiRossiTest.R")
@@ -157,84 +155,5 @@ data.frame(QL = c(MCS_MQL1, MCS_MQL2),
            NZ = c(MCS_MNZ1, MCS_MNZ2),
            AL = c(MCS_MAL1, MCS_MAL2))
 
-
-
-# Giacomini and Rossi test
-graficos_fluctuations = function(VaR, ES, Ret, Dates, risklevel, fluc_alpha = 0.05, mu_, b, competitors) {
-  # b: column of the best model
-  m <- round(mu_ * length(Ret))
-  days <- Dates[-c(1:(1 + m - 2))]
-  a <- ifelse(risklevel == 2.5, 0.025, ifelse(risklevel == 5, 0.050, 0.010))
-  p <- ncol(VaR)
-  x <- 1:p
-  x <- x[competitors]
-  LimSup <- c(0, 0, 0)
-  LimInf <- c(0, 0, 0)
-  Fluctu <- c(0, 0, 0)
-  ScoFun <- c("0", "0", "0")
-  A_vs_B <- c("0", "0", "0")
-  n <- length(days)
-  names <- c("Gray (Normal)", "Gray (Student-t)", "Klaassen (Normal)", "Klaassen (Student-t)", "Haas (Normal)", "Haas (Student-t)")
-
-  for (i in x) {
-    GR_QL <- fluct_test(QL(matrix(VaR[, b], ncol = 1), Ret, alpha = a), 
-                        QL(matrix(VaR[, i], ncol = 1), Ret, alpha = a),
-                        mu = mu_, alpha = fluc_alpha, dmv_fullsample = TRUE)
-    
-    GR_FZG <- fluct_test(FZG(matrix(VaR[, b], ncol = 1), matrix(ES[, b], ncol = 1), Ret, alpha = a), 
-                         FZG(matrix(VaR[, i], ncol = 1), matrix(ES[, i], ncol = 1), Ret, alpha = a),
-                         mu = mu_, alpha = fluc_alpha, dmv_fullsample = TRUE)
-    
-    GR_NZ <- fluct_test(NZ(matrix(VaR[, b], ncol = 1), matrix(ES[, b], ncol = 1), Ret, alpha = a), 
-                        NZ(matrix(VaR[, i], ncol = 1), matrix(ES[, i], ncol = 1), Ret, alpha = a),
-                         mu = mu_, alpha = fluc_alpha, dmv_fullsample = TRUE)
-    
-    GR_AL <- fluct_test(AL(matrix(VaR[, b], ncol = 1), matrix(ES[, b], ncol = 1), Ret, alpha = a), 
-                         AL(matrix(VaR[, i], ncol = 1), matrix(ES[, i], ncol = 1), Ret, alpha = a),
-                         mu = mu_, alpha = fluc_alpha, dmv_fullsample = TRUE)
-    
-  
-    
-    LimSup <- c(LimSup, rep(GR_QL$cv_sup, n), rep(GR_FZG$cv_sup, n), rep(GR_NZ$cv_sup, n), rep(GR_AL$cv_sup, n))
-    LimInf <- c(LimInf, rep(GR_QL$cv_inf, n), rep(GR_FZG$cv_inf, n), rep(GR_NZ$cv_inf, n), rep(GR_AL$cv_inf, n))
-    Fluctu <- c(Fluctu, GR_QL$fluc$y, GR_FZG$fluc$y, GR_NZ$fluc$y, GR_AL$fluc$y)
-    ScoFun <- c(ScoFun, rep("QL", n), rep("FZG", n), rep("NZ", n), rep("AL", n))
-    A_vs_B <- c(A_vs_B, rep(paste0(names[b], " vs. ", names[i]), 4*n))
-    
-  }
-  data_figure <- data.frame(LimSup, LimInf, Fluctu, ScoFun, A_vs_B)
-  data_figure <- data_figure[-c(1, 2, 3), ]
-  data_figure$days <- rep(days, 4*length(x))
-  data_figure$A_vs_B <- factor(data_figure$A_vs_B, unique(data_figure$A_vs_B))
-  
-  figure <- ggplot(data = data_figure) + 
-    #geom_vline(xintercept = as.Date(c("2020-03-12")), color = "red", linetype = "dashed") + 
-    geom_line(aes(x = days, Fluctu), color = "green4") + 
-    geom_line(aes(x = days, LimSup), color = "black", linetype = "dashed") + 
-    geom_line(aes(x = days, LimInf), color = "black", linetype = "dashed") + 
-    ylab("Relative performance") + xlab(" ") + facet_grid(ScoFun ~ A_vs_B) +
-    theme_bw()
-  
-  ggsave(filename = paste0("GR_", risklevel), plot = figure, device = "pdf",
-         width = 35, height = 21, units = "cm")
-  
-}
-
-mu_ <- 0.2
-b <- 6
-competitors <- c(1, 2, 3, 4, 5)
-Ret <- r_oos
-fluc_alpha <- 0.05
-
-risklevel <- 1
-VaR <- VaR_1
-ES <- ES_1
-graficos_fluctuations(VaR, ES, Ret, Dates, risklevel, fluc_alpha, mu_, b, competitors)
-
-risklevel <- 2
-VaR <- VaR_2
-ES <- ES_2
-graficos_fluctuations(VaR, ES, Ret, Dates, risklevel, fluc_alpha, mu_, b, competitors)
-
-
-
+# 1: Belongs to the MCS
+# 0: Does not belong to the MCS
