@@ -13,6 +13,12 @@ library(esreg)
 library(Rcpp)
 library(quantreg)
 library(tidyr)
+library(moments)
+library(xtable)
+library(gridExtra)
+library(grid)
+library(scales)
+
 sourceCpp("Aux/scoring_functions.cpp")
 source("Aux/Function_VaR_VQR.R")
 
@@ -146,3 +152,196 @@ data.frame(QL = c(MCS_MQL1, MCS_MQL2),
 
 # 1: Belongs to the MCS
 # 0: Does not belong to the MCS
+
+
+###################################
+###    Table 1 and Figure 1     ###    
+###################################
+
+BTC = read.csv("./Data/BTCUSDT_1d.csv") %>% 
+  mutate(date = as.Date(OpenTime)) %>% arrange(date) %>% mutate(ret = c(NA,diff(log(Close))*100)) %>% 
+  dplyr::select(date, ret) %>% rename(BTC = ret) |> drop_na()
+
+ETH = read.csv("./Data/ETHUSDT_1d.csv") %>% 
+  mutate(date = as.Date(OpenTime)) %>% arrange(date) %>% mutate(ret = c(NA,diff(log(Close))*100)) %>% 
+  dplyr::select(date, ret) %>% rename(ETH = ret) |> drop_na()
+
+Crypto = BTC %>% left_join(ETH, by = "date") %>% dplyr::select(date, BTC, ETH) 
+
+Descriptive = function(ret){
+  c(min(ret, na.rm = TRUE), quantile(ret, 0.25, na.rm = TRUE), quantile(ret, 0.5, na.rm = TRUE), 
+    mean(ret, na.rm = TRUE), quantile(ret, 0.75, na.rm = TRUE), max(ret, na.rm = TRUE),
+    sd(ret, na.rm = TRUE), skewness(ret, na.rm = TRUE), kurtosis(ret, na.rm = TRUE))
+}
+N = dim(Crypto)[2] - 1 
+Results = matrix(0, ncol = 9, nrow = N)
+for (i in 1:N) {
+  Results[i, ] = Descriptive(Crypto[, i + 1])
+}
+
+colnames(Results) = c("Min", "Q1", "Median", "Mean", "Q3", "Max", "Sd", "Skew", "Kurtosis")
+row.names(Results) = colnames(Crypto[, -1])
+tabela = xtable(Results,caption = "Descriptive statistics of daily returns", digits = 2)
+
+InS <- 1000
+
+{
+  
+  p1_1 = ggplot(BTC, aes(date, BTC)) + geom_line(colour = "green4") +
+    xlab(" ") + ylab("Bitcoin") + geom_vline(xintercept = Crypto[InS + 1,"date"], linetype = "dashed") + 
+    scale_x_date(date_breaks = "1 year", date_labels =  "%Y") +
+    theme_bw() + theme(axis.text.x = element_text(size = 9,face = "bold")) 
+  
+  p1_2 = ggplot(ETH, aes(date, ETH)) + geom_line(colour = "green4") +
+    xlab(" ") + ylab("Ethereum") + geom_vline(xintercept = Crypto[InS + 1,"date"], linetype = "dashed") + 
+    scale_x_date(date_breaks = "1 year", date_labels =  "%Y") +
+    theme_bw() + theme(axis.text.x = element_text(size = 9,face = "bold"))
+}
+
+######### Autocorrelations Generalised Barlett
+{
+  
+  gamma <- function(x,h){
+    n <- length(x)
+    h <- abs(h)
+    x <- x - mean(x)
+    gamma <- sum(x[1:(n - h)]*x[(h + 1):n])/n
+  }
+  rho <- function(x,h) rho <- gamma(x,h)/gamma(x,0)
+  
+  
+  x = BTC$BTC
+  n = length(x)
+  nlag <- 50 
+  acf.val <- sapply(c(1:nlag),function(h) rho(x,h))
+  x2 <- x^2
+  var <- 1 + (sapply(c(1:nlag),function(h) gamma(x2,h)))/gamma(x,0)^2
+  band <- sqrt(var/n)
+  
+  conf.level <- 0.95
+  ciline <- qnorm((1 - conf.level)/2)/sqrt(length(x))
+  bacf <- acf(x, plot = FALSE, 50)  
+  bacfdf <- with(bacf, data.frame(lag, acf))
+  
+  p2_1 <- ggplot(data = bacfdf[-1,], mapping = aes(x = lag, y = acf)) +
+    geom_bar(stat = "identity", position = "identity", fill = "green4") + ylab("Bitcoin") + 
+    ylim(c(-0.15,0.15)) +
+    geom_line(aes(y = -1.96*band, x = 1:50)) +
+    geom_line(aes(y = -1.96/sqrt(n), x = 1:50), linetype = "dotted") +
+    geom_line(aes(y = 1.96/sqrt(n), x = 1:50), linetype = "dotted") +
+    geom_line(aes(y = 1.96*band, x = 1:50)) + 
+    theme_bw() + 
+    theme(legend.position = "none")
+  
+  x = ETH$ETH
+  n = length(x)
+  nlag <- 50 
+  acf.val <- sapply(c(1:nlag),function(h) rho(x,h))
+  x2 <- x^2
+  var <- 1 + (sapply(c(1:nlag),function(h) gamma(x2,h)))/gamma(x,0)^2
+  band <- sqrt(var/n)
+  
+  conf.level <- 0.95
+  ciline <- qnorm((1 - conf.level)/2)/sqrt(length(x))
+  bacf <- acf(x, plot = FALSE, 50)  
+  bacfdf <- with(bacf, data.frame(lag, acf))
+  
+  p2_2 <- ggplot(data = bacfdf[-1,], mapping = aes(x = lag, y = acf)) +
+    geom_bar(stat = "identity", position = "identity", fill = "green4") + ylab("Ethereum") + 
+    ylim(c(-0.15,0.15)) +
+    geom_line(aes(y = -1.96*band, x = 1:50)) +
+    geom_line(aes(y = -1.96/sqrt(n), x = 1:50), linetype = "dotted") +
+    geom_line(aes(y = 1.96/sqrt(n), x = 1:50), linetype = "dotted") +
+    geom_line(aes(y = 1.96*band, x = 1:50)) + 
+    theme_bw() + 
+    theme(legend.position = "none")
+}
+
+######### Autocorrelations Barlett
+{
+  retornos = BTC$BTC
+  inventories = retornos^2
+  n <- length(inventories)
+  mean.inventories <- sum(inventories)/n
+  # Express the data in deviations from the mean
+  z.bar <- rep(mean.inventories,n)
+  deviations <- inventories - z.bar
+  # Calculate the sum of squared deviations from the mean
+  squaredDeviations <- deviations^2
+  sumOfSquaredDeviations <- sum(squaredDeviations)
+  # Create empty vector to store autocorrelation coefficients
+  r <- c()
+  # Use a for loop to fill the vector with the coefficients
+  for (k in 1:n) {
+    ends <- n - k
+    starts <- 1 + k
+    r[k] <- sum(deviations[1:(ends)]*deviations[(starts):(n)])/sumOfSquaredDeviations
+  }
+  # Create empty vector to store Bartlett's standard errors
+  bart.error <- c()
+  # Use a for loop to fill the vector with the standard errors
+  for (k in 1:n) {
+    ends <- k - 1
+    bart.error[k] <- ((1 + sum((2*r[0:(ends)]^2)))^0.5)*(n^-0.5)
+  }
+  
+  bacf <- acf(retornos^2, plot = FALSE, 50)  
+  bacfdf <- with(bacf, data.frame(lag, acf))
+  
+  
+  
+  p3_1 <- ggplot(data = bacfdf[-1,], mapping = aes(x = lag, y = acf)) +
+    geom_bar(stat = "identity", position = "identity", fill = "green4") + ylab(expression(Bitcoin^{2})) + 
+    geom_line(aes(y = -1.96*bart.error[1:50], x = 1:50)) +
+    geom_line(aes(y = 1.96*bart.error[1:50], x = 1:50)) + theme_bw() + 
+    theme(legend.position = "none")
+  
+  retornos = ETH$ETH
+  inventories = retornos^2
+  n <- length(inventories)
+  mean.inventories <- sum(inventories)/n
+  # Express the data in deviations from the mean
+  z.bar <- rep(mean.inventories,n)
+  deviations <- inventories - z.bar
+  # Calculate the sum of squared deviations from the mean
+  squaredDeviations <- deviations^2
+  sumOfSquaredDeviations <- sum(squaredDeviations)
+  # Create empty vector to store autocorrelation coefficients
+  r <- c()
+  # Use a for loop to fill the vector with the coefficients
+  for (k in 1:n) {
+    ends <- n - k
+    starts <- 1 + k
+    r[k] <- sum(deviations[1:(ends)]*deviations[(starts):(n)])/sumOfSquaredDeviations
+  }
+  # Create empty vector to store Bartlett's standard errors
+  bart.error <- c()
+  # Use a for loop to fill the vector with the standard errors
+  for (k in 1:n) {
+    ends <- k - 1
+    bart.error[k] <- ((1 + sum((2*r[0:(ends)]^2)))^0.5)*(n^-0.5)
+  }
+  
+  bacf <- acf(retornos^2, plot = FALSE, 50)  
+  bacfdf <- with(bacf, data.frame(lag, acf))
+  
+  
+  
+  p3_2 <- ggplot(data = bacfdf[-1,], mapping = aes(x = lag, y = acf)) +
+    geom_bar(stat = "identity", position = "identity", fill = "green4") + ylab(expression(Ethereum^{2})) + 
+    geom_line(aes(y = -1.96*bart.error[1:50], x = 1:50)) +
+    geom_line(aes(y = 1.96*bart.error[1:50], x = 1:50)) + theme_bw() + 
+    theme(legend.position = "none")
+  
+}
+
+pdf("crypto_figures.pdf", paper = "a4r", width = 18, height = 8) 
+pushViewport(viewport(layout = grid.layout(2, 3)))
+vplayout <- function(x, y) viewport(layout.pos.row = x, layout.pos.col = y)
+print(p1_1, vp = vplayout(1, 1))
+print(p2_1, vp = vplayout(1, 2))
+print(p3_1, vp = vplayout(1, 3))
+print(p1_2, vp = vplayout(2, 1))
+print(p2_2, vp = vplayout(2, 2))
+print(p3_2, vp = vplayout(2, 3))
+dev.off()
