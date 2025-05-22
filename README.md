@@ -1,6 +1,6 @@
 # CryptoMSGARCH
 
-Codes used in the paper "Forecasting Bitcoin and Ethereum Risk Measures through MSGARCH Models: Does the Specification Matter?" by Luiz K. Hotta, Carlos Trucíos, Pedro Valls and Maurício Zevallos. Codes are implemented in #julialang.
+Codes used in the paper ["Forecasting Bitcoin and Ethereum Risk Measures through MSGARCH Models: Does the Specification Matter?"](https://periodicos.fgv.br/rbfin/article/view/92777) by Luiz K. Hotta, Carlos Trucíos, Pedro Valls and Maurício Zevallos. Codes are implemented in #julialang.
 
 - To replicate the results for Bitcoin: `EmpiricalApplication_BTC.jl`
 - To replicate the results for Ethereum: `EmpiricalApplication_ETH.jl`.
